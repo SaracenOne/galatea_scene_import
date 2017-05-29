@@ -1,5 +1,22 @@
 tool
 
+static func clear_animation_morph_tracks(p_animation):
+	var track_count = p_animation.get_track_count()
+	var tracks_to_delete = []
+	
+	for i in range(0, track_count):
+		var path = p_animation.track_get_path(i)
+		var property = path.get_property()
+		if(property.find("morph/") == 0):
+			tracks_to_delete.append(path)
+			
+	for track_to_delete in tracks_to_delete:
+		var idx = p_animation.find_track(track_to_delete)
+		if(idx != -1):
+			p_animation.remove_track(idx)
+			
+	return p_animation
+
 static func string_ends_with(p_main_string, p_end_string):
 	var pos = p_main_string.find_last(p_end_string)
 	if (pos==-1):

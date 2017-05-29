@@ -7,13 +7,24 @@ const mesh_directory_path = "res://assets/models/character"
 const skeleton_directory_path = "res://assets/skeletons"
 
 const utility_const = preload("utility.gd")
+const mesh_combiner_const = preload("res://addons/mesh_combiner/mesh_combiner.gd")
+const blend_shape_extractor_const = preload("res://addons/mesh_combiner/blend_shape_extractor.gd")
+const blend_shape_data_collection_const = preload("res://addons/mesh_combiner/blend_shape_data_collection.gd")
 
 func post_import(p_scene):
 	print("Importing character...")
 
+	var directory = Directory.new()
+	directory.make_dir_recursive(animation_directory_path)
+	directory.make_dir_recursive(material_directory_path)
+	directory.make_dir_recursive(mesh_directory_path)
+	directory.make_dir_recursive(skeleton_directory_path)
+	directory = null
+
 	var animation_player = p_scene.get_node("AnimationPlayer")
 	for animation_name in animation_player.get_animation_list():
 		var animation = animation_player.get_animation(animation_name)
+		animation = utility_const.clear_animation_morph_tracks(animation)
 		print("Saving animation '" + animation_name + "'...")
 		ResourceSaver.save(animation_directory_path + "/" + animation_name + ".tres", animation)
 
@@ -33,12 +44,32 @@ func post_import(p_scene):
 					if(mesh):
 						for i in range(0, mesh.get_surface_count()):
 							var material = mesh.surface_get_material(i)
-							
+
 							print("Saving material '" + material.get_name() + "'...")
 							ResourceSaver.save(material_directory_path + "/" + material.get_name() + ".tres", material)
-							
+
 						print("Saving mesh '" + mesh.get_name() + "'...")
-						ResourceSaver.save(mesh_directory_path + "/" + mesh.get_name() + ".tres", mesh)
+						ResourceSaver.save(mesh_directory_path + "/" + mesh.get_name() + ".msh", mesh)
+
+						# Extract morphs
+						var mesh_combiner = mesh_combiner_const.new()
+						mesh_combiner.append_mesh(mesh)
+
+						var blend_shape_collection = blend_shape_data_collection_const.new()
+
+						print("blend shape count = " + str(mesh_combiner.blend_shape_names.size()))
+						for i in range(0, mesh_combiner.blend_shape_names.size()):
+							print("blend shape: " + mesh_combiner.blend_shape_names[i])
+							if utility_const.teststr(mesh_combiner.blend_shape_names[i], "gen_morph"):
+								var blend_shape_data = blend_shape_extractor_const.extract_blend_shape_from_mesh_combiner(mesh_combiner, mesh_combiner.blend_shape_names[i])
+								blend_shape_collection.blend_shape_data.append(blend_shape_data)
+
+						if(blend_shape_collection.blend_shape_data.size() > 0):
+							print("Saving blend shape '" + mesh.get_name() + "_blend_shapes" + "'...")
+							ResourceSaver.save(mesh_directory_path + "/" + mesh.get_name() + "_blend_shapes" + ".tres", blend_shape_collection)
+						else:
+							print("No blend shape...")
+
 			var export_armature = Spatial.new()
 			export_armature.set_transform(armature.get_transform())
 			export_armature.set_name("Armature")
